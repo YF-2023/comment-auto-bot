@@ -14,16 +14,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_LABELS: ${{ toJSON(github.event.issue.labels) }}
         run: |
           echo "Issue #$ISSUE_NUMBER opened"
-          echo "Labels: $ISSUE_LABELS"
           
-          # Check if bug label exists
-          if echo "$ISSUE_LABELS" | grep -q '"name":"bug"'; then
+          # Get issue details to check labels
+          ISSUE_JSON=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER)
+          
+          echo "Issue data: $ISSUE_JSON"
+          
+          # Check labels using jq for proper JSON parsing
+          if echo "$ISSUE_JSON" | jq -e '.labels[] | select(.name == "bug")' > /dev/null 2>&1; then
             COMMENT="Thank you. We will fix it"
-          # Check if feature label exists
-          elif echo "$ISSUE_LABELS" | grep -q '"name":"feature"'; then
+          elif echo "$ISSUE_JSON" | jq -e '.labels[] | select(.name == "feature")' > /dev/null 2>&1; then
             COMMENT="Thank you, we will consider to include this feature."
           else
             COMMENT="Thank you for your contribution!"
