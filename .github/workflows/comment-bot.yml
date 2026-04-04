@@ -1,0 +1,39 @@
+name: Automated Comment Bot
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  comment-on-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Check issue labels and add comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_LABELS: ${{ toJSON(github.event.issue.labels) }}
+        run: |
+          echo "Issue #$ISSUE_NUMBER opened"
+          echo "Labels: $ISSUE_LABELS"
+          
+          # Check if bug label exists
+          if echo "$ISSUE_LABELS" | grep -q '"name":"bug"'; then
+            COMMENT="Thank you. We will fix it"
+          # Check if feature label exists
+          elif echo "$ISSUE_LABELS" | grep -q '"name":"feature"'; then
+            COMMENT="Thank you, we will consider to include this feature."
+          else
+            COMMENT="Thank you for your contribution!"
+          fi
+          
+          echo "Adding comment: $COMMENT"
+          
+          # Add comment to the issue
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/issues/$ISSUE_NUMBER/comments \
+            -d "{\"body\":\"$COMMENT\"}"
